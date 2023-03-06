@@ -17,13 +17,17 @@ use crate::error::{Error, Result};
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Args {
-   /// Manifest file to reify (can be given multiple times)
+   /// Explicit manifest file to reify (can be given multiple times)
    #[arg(short, long)]
    manifest: Vec<PathBuf>,
 
-   /// Manifest file name to match when reifying recursively
+   /// Manifest file name to match
    #[arg(long, default_value = ".rsha")]
    r#match: String,
+
+   /// Recursively search for manifest files
+   #[arg(short, long, default_value_t = false)]
+   recurs: bool,
 
    /// Skip entries after failed check
    #[arg(short, long, default_value_t = false)]
@@ -128,8 +132,10 @@ fn reify_and_update_manifest(args: &Args, path: &Path) -> Result<bool> {
 fn start(args: &Args) -> Result<bool> {
     let files = if args.manifest.len() > 0 {
         args.manifest.clone()
-    } else {
+    } else if args.recurs {
         find_manifests(Path::new("."), &args.r#match)
+    } else {
+        vec![Path::new(&args.r#match).canonicalize()?]
     };
 
     let files = files.iter()

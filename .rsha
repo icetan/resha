@@ -5,4 +5,5 @@
     { nix run --inputs-from . src-block < README.md; } 1<> README.md
   required_files:
   - README.md
-  sha: da0d1939f2f06525ed7901d843c4f1cb5ca5bd20477374aae526b806c8d150a0
+  - src/main.rs
+  sha: 1ed38604430d2f3f782e452bcc2bc4d38baa4363bb5222ae826d6a3ad070d136
