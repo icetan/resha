@@ -1,0 +1,8 @@
+-
+  name: Update README with CLI help
+  cmd: |
+    export SB_STYLE=md
+    { nix run --inputs-from . src-block < README.md; } 1<> README.md
+  required_files:
+  - README.md
+  sha: da0d1939f2f06525ed7901d843c4f1cb5ca5bd20477374aae526b806c8d150a0

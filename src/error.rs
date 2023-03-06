@@ -13,8 +13,6 @@ pub enum Error {
     ManifestMalformed,
     #[error("Manifest file is malformed: missing 'cmd' key")]
     MissingCmd,
-    #[error("Manifest file is malformed: missing 'name' key")]
-    MissingName,
     #[error("IO: {0}")]
     Io(#[from] io::Error),
     #[error("Problem converting from UTF-8")]

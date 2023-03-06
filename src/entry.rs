@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use thiserror::Error as ThisError;
 use sha2::{Sha256, Digest};
-use strict_yaml_rust::{StrictYaml as Yaml};
+use strict_yaml_rust::StrictYaml as Yaml;
 
 use crate::error::{Error, Result};
 
@@ -36,7 +36,7 @@ pub type ReifyResult = core::result::Result<ReifySuccess, ReifyFail>;
 
 #[derive(Debug)]
 pub struct Entry {
-    name: String,
+    name: Option<String>,
     cmd: String,
     required_files: Vec<String>,
     files: Vec<String>,
@@ -141,8 +141,8 @@ impl Entry {
     pub fn dump(&self, w: &mut dyn fmt::Write, new_sha: Option<Sha>) -> Result<()> {
         writeln!(w ,"-")?;
 
-        if self.name != "" {
-            writeln!(w ,"  name: {}", self.name)?;
+        if let Some(name) = &self.name {
+            writeln!(w ,"  name: {}", name)?;
         }
 
         writeln!(w ,"  cmd: |")?;
@@ -170,7 +170,7 @@ impl Entry {
         Ok(())
     }
 
-    pub fn name(&self) -> &String {
+    pub fn name(&self) -> &Option<String> {
         &self.name
     }
 }
@@ -185,7 +185,7 @@ impl fmt::Display for Entry {
 impl FromYaml for Entry {
     fn from_yaml(yaml: &Yaml) -> Result<Self> {
         Ok(Self {
-            name: yaml["name"].as_str().map(String::from).ok_or(Error::MissingName)?,
+            name: yaml["name"].as_str().map(String::from),
             cmd: yaml["cmd"].as_str().map(String::from).ok_or(Error::MissingCmd)?,
             sha: yaml["sha"].as_str().map(String::from),
             files: str_vec(&yaml["files"]),

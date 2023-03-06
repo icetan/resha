@@ -53,7 +53,28 @@
       "inputs": {
         "naersk": "naersk",
         "nixpkgs": "nixpkgs_2",
+        "src-block": "src-block",
         "utils": "utils"
+      }
+    },
+    "src-block": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1651409951,
+        "narHash": "sha256-QwvzdfWWowNUySPzdj1EQC6lJgx5QWxdCKQnybq69HA=",
+        "owner": "icetan",
+        "repo": "src-block",
+        "rev": "8a277bd7b04a6acf40a46e9cf284c806900d1fc9",
+        "type": "github"
+      },
+      "original": {
+        "owner": "icetan",
+        "repo": "src-block",
+        "type": "github"
       }
     },
     "utils": {

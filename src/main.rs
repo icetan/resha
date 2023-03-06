@@ -13,13 +13,17 @@ mod manifest;
 use crate::entry::{Entry, FromYaml, ReifySuccess};
 use crate::error::{Error, Result};
 
-/// Run commands from YAML files
+/// Keep your generated and versioned files in sync
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Args {
    /// Manifest file to reify (can be given multiple times)
    #[arg(short, long)]
    manifest: Vec<PathBuf>,
+
+   /// Manifest file name to match when reifying recursively
+   #[arg(long, default_value = ".rsha")]
+   r#match: String,
 
    /// Skip entries after failed check
    #[arg(short, long, default_value_t = false)]
@@ -60,7 +64,7 @@ fn reify_manifest(args: &Args, path: &Path) -> Result<manifest::ReifyStatus> {
     println!("0..{}  # manifest {}", entries.len() - 1, path.display());
 
     for (i, e) in entries.iter().enumerate() {
-        let name = e.name();
+        let name = e.name().clone().unwrap_or("<unnamed>".into());
         if fail_fast && failed {
             e.dump(&mut output, None)?;
             println!("ok {i} - {name}  # SKIP failing fast");
@@ -104,10 +108,11 @@ fn reify_manifest(args: &Args, path: &Path) -> Result<manifest::ReifyStatus> {
     })
 }
 
-fn find_manifests<'a>(root: &Path, name: &str) -> Vec<PathBuf> {
+fn find_manifests<'a>(root: &Path, name: &String) -> Vec<PathBuf> {
     let mut res = Vec::new();
     for file in WalkDir::new(root).into_iter().filter_map(|f| f.ok()) {
-        if file.metadata().map(|m| m.is_file()).unwrap_or(false) && file.file_name() == name {
+        if file.metadata().map(|m| m.is_file()).unwrap_or(false)
+            && file.file_name() == name.as_str() {
             res.push(file.path().to_path_buf());
         }
     }
@@ -124,7 +129,7 @@ fn start(args: &Args) -> Result<bool> {
     let files = if args.manifest.len() > 0 {
         args.manifest.clone()
     } else {
-        find_manifests(Path::new("."), ".rsha")
+        find_manifests(Path::new("."), &args.r#match)
     };
 
     let files = files.iter()
