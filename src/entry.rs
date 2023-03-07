@@ -5,9 +5,9 @@ use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
 use duct::cmd;
-use thiserror::Error as ThisError;
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 use strict_yaml_rust::StrictYaml as Yaml;
+use thiserror::Error as ThisError;
 
 use crate::error::{Error, Result};
 
@@ -50,7 +50,8 @@ fn canonicalize(p: &String) -> Option<PathBuf> {
 
 fn str_vec(y: &Yaml) -> Vec<String> {
     match y {
-        Yaml::Array(x) => x.iter()
+        Yaml::Array(x) => x
+            .iter()
             .filter_map(Yaml::as_str)
             .map(String::from)
             .collect::<Vec<_>>(),
@@ -63,7 +64,9 @@ impl Entry {
     fn calc_sha(&self) -> Result<Sha> {
         let mut hasher = Sha256::new();
         let mut buffer = [0; 1024];
-        let mut all_files = self.files.iter()
+        let mut all_files = self
+            .files
+            .iter()
             .chain(self.required_files.iter())
             .filter_map(canonicalize)
             .collect::<Vec<_>>();
@@ -74,7 +77,9 @@ impl Entry {
 
             loop {
                 let count = reader.read(&mut buffer)?;
-                if count == 0 { break }
+                if count == 0 {
+                    break;
+                }
                 hasher.update(&buffer[..count]);
             }
         }
@@ -95,7 +100,7 @@ impl Entry {
         for line in lines {
             match line {
                 Ok(l) => eprintln!("{}", l),
-                Err(_) => return Ok(1)
+                Err(_) => return Ok(1),
             }
         }
 
@@ -103,7 +108,9 @@ impl Entry {
     }
 
     fn check_then<F>(&self, exec: F) -> Result<ReifyResult>
-    where F: FnOnce() -> Result<ReifyResult> {
+    where
+        F: FnOnce() -> Result<ReifyResult>,
+    {
         if let Some(old_sha) = self.sha.as_ref() {
             // Check if existing sha matches newly calculated one
             let new_sha = self.calc_sha()?;
@@ -121,22 +128,25 @@ impl Entry {
     }
 
     pub fn reify(&self) -> Result<ReifyResult> {
-        let exec = || self.exec()
-            .and_then(|code| {
+        let exec = || {
+            self.exec().and_then(|code| {
                 if code == 0 {
                     self.calc_sha()
                         .and_then(|sha| Ok(Ok(ReifySuccess::ExecSuccess(sha))))
                 } else {
                     Ok(Err(ReifyFail::ExecFail(code)))
                 }
-            });
+            })
+        };
 
-        match self.required_files
+        match self
+            .required_files
             .iter()
             .map(std::fs::canonicalize)
-            .collect::<core::result::Result<Vec<_>, _>>() {
+            .collect::<core::result::Result<Vec<_>, _>>()
+        {
             Err(_) => Ok(Err(ReifyFail::MissingRequiredFiles)),
-            Ok(_) => self.check_then(exec)
+            Ok(_) => self.check_then(exec),
         }
     }
 
@@ -145,33 +155,33 @@ impl Entry {
     }
 
     pub fn dump(&self, w: &mut dyn fmt::Write, new_sha: Option<Sha>) -> Result<()> {
-        writeln!(w ,"-")?;
+        writeln!(w, "-")?;
 
         if let Some(name) = &self.name {
-            writeln!(w ,"  name: {}", name)?;
+            writeln!(w, "  name: {}", name)?;
         }
 
-        writeln!(w ,"  cmd: |")?;
+        writeln!(w, "  cmd: |")?;
         for line in self.cmd.lines() {
-            writeln!(w ,"    {}", line)?;
+            writeln!(w, "    {}", line)?;
         }
 
-        if ! self.required_files.is_empty() {
-            writeln!(w ,"  required_files:")?;
+        if !self.required_files.is_empty() {
+            writeln!(w, "  required_files:")?;
             for file in self.required_files.iter() {
-                writeln!(w ,"  - {file}")?;
+                writeln!(w, "  - {file}")?;
             }
         }
 
-        if ! self.files.is_empty() {
-            writeln!(w ,"  files:")?;
+        if !self.files.is_empty() {
+            writeln!(w, "  files:")?;
             for file in self.files.iter() {
-                writeln!(w ,"  - {file}")?;
+                writeln!(w, "  - {file}")?;
             }
         }
 
         if let Some(sha) = new_sha.or_else(|| self.sha.clone()) {
-            writeln!(w ,"  sha: {}", sha)?;
+            writeln!(w, "  sha: {}", sha)?;
         }
         Ok(())
     }
@@ -192,7 +202,10 @@ impl FromYaml for Entry {
     fn from_yaml(yaml: &Yaml) -> Result<Self> {
         Ok(Self {
             name: yaml["name"].as_str().map(String::from),
-            cmd: yaml["cmd"].as_str().map(String::from).ok_or(Error::MissingCmd)?,
+            cmd: yaml["cmd"]
+                .as_str()
+                .map(String::from)
+                .ok_or(Error::MissingCmd)?,
             sha: yaml["sha"].as_str().map(String::from),
             files: str_vec(&yaml["files"]),
             required_files: str_vec(&yaml["required_files"]),

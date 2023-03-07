@@ -20,16 +20,18 @@ file and versioned (e.g. with git) along the input files.
 ```
 Keep your generated and versioned files in sync
 
-Usage: rsha [OPTIONS]
+Usage: rsha [OPTIONS] [MANIFESTS]...
+
+Arguments:
+  [MANIFESTS]...  Explicit manifest files to reify
 
 Options:
-  -m, --manifest <MANIFEST>  Explicit manifest file to reify (can be given multiple times)
-      --match <MATCH>        Manifest file name to match [default: .rsha]
-  -r, --recursive            Recursively search for manifest files
-  -f, --fail-fast            Skip entries after failed check
-  -d, --dry-run              Dry run
-  -h, --help                 Print help
-  -V, --version              Print version
+  -m, --match <MATCH>  Manifest file name to match [default: .rsha.yml]
+  -r, --recursive      Recursively search for manifest files
+  -f, --fail-fast      Skip entries after failed check
+  -d, --dry-run        Dry run
+  -h, --help           Print help
+  -V, --version        Print version
 
 ```
 <!--END[]-->
