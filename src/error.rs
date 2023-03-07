@@ -11,20 +11,18 @@ pub enum Error {
     LoadYaml(#[from] ScanError),
     #[error("Manifest file is malformed")]
     ManifestMalformed,
-    #[error("Manifest file is malformed: missing 'cmd' key")]
+    #[error("Manifest file is malformed, missing 'cmd' key")]
     MissingCmd,
-    #[error("IO: {0}")]
+    #[error("IO - {0}")]
     Io(#[from] io::Error),
+    #[error("Manifest file doesn't exist - '{0}'")]
+    ManifestFileDoesntExist(String),
     #[error("Problem converting from UTF-8")]
     ConvertUTF8(#[from] FromUtf8Error),
-    #[error("Unknown problem")]
-    Unknown,
-    #[error("Invalid path {0}")]
+    #[error("Invalid path - '{0}'")]
     InvalidPath(String),
     #[error("Cloudn't update config")]
     SerializeYaml(#[from] EmitError),
     #[error("Cloudn't dump entry")]
     DumpEntry(#[from] fmt::Error),
-    #[error("Stopping due to fail fast # TODO: this shouldn't be an error")]
-    FailFastStop,
 }

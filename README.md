@@ -25,7 +25,7 @@ Usage: rsha [OPTIONS]
 Options:
   -m, --manifest <MANIFEST>  Explicit manifest file to reify (can be given multiple times)
       --match <MATCH>        Manifest file name to match [default: .rsha]
-  -r, --recurs               Recursively search for manifest files
+  -r, --recursive            Recursively search for manifest files
   -f, --fail-fast            Skip entries after failed check
   -d, --dry-run              Dry run
   -h, --help                 Print help

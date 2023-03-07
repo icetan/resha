@@ -1,9 +1,10 @@
 use std::fmt;
-use std::process::{Command, Stdio};
 use std::fs::File;
+use std::io::prelude::*;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
+use duct::cmd;
 use thiserror::Error as ThisError;
 use sha2::{Sha256, Digest};
 use strict_yaml_rust::StrictYaml as Yaml;
@@ -82,19 +83,23 @@ impl Entry {
     }
 
     fn exec(&self) -> Result<i32> {
-        let mut child = Command::new("/bin/bash")
-            .arg("-c")
-            .arg(vec!["set -xe", &self.cmd].join("\n"))
+        let script = vec!["set -xe", &self.cmd].join("\n");
+
+        let reader = cmd!("bash", "-c", script)
             .env("files", self.files.join("\n"))
             .env("required_files", self.required_files.join("\n"))
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
-            .spawn()?;
+            .stderr_to_stdout()
+            .reader()?;
 
-        match child.wait()?.code() {
-            Some(code) => Ok(code),
-            None => Err(Error::Unknown)
+        let lines = BufReader::new(reader).lines();
+        for line in lines {
+            match line {
+                Ok(l) => eprintln!("{}", l),
+                Err(_) => return Ok(1)
+            }
         }
+
+        Ok(0)
     }
 
     fn check_then<F>(&self, exec: F) -> Result<ReifyResult>
@@ -126,11 +131,12 @@ impl Entry {
                 }
             });
 
-        let len = self.required_files.iter().filter_map(canonicalize).collect::<Vec<_>>().len();
-        if  self.required_files.len() == len {
-            self.check_then(exec)
-        } else {
-            Ok(Err(ReifyFail::MissingRequiredFiles))
+        match self.required_files
+            .iter()
+            .map(std::fs::canonicalize)
+            .collect::<core::result::Result<Vec<_>, _>>() {
+            Err(_) => Ok(Err(ReifyFail::MissingRequiredFiles)),
+            Ok(_) => self.check_then(exec)
         }
     }
 

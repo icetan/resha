@@ -17,31 +17,34 @@ use crate::error::{Error, Result};
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Args {
-   /// Explicit manifest file to reify (can be given multiple times)
-   #[arg(short, long)]
-   manifest: Vec<PathBuf>,
+    /// Explicit manifest file to reify (can be given multiple times)
+    #[arg(short, long)]
+    manifest: Vec<PathBuf>,
 
-   /// Manifest file name to match
-   #[arg(long, default_value = ".rsha")]
-   r#match: String,
+    /// Manifest file name to match
+    #[arg(long, default_value = ".rsha")]
+    r#match: String,
 
-   /// Recursively search for manifest files
-   #[arg(short, long, default_value_t = false)]
-   recurs: bool,
+    /// Recursively search for manifest files
+    #[arg(short, long, default_value_t = false)]
+    recursive: bool,
 
-   /// Skip entries after failed check
-   #[arg(short, long, default_value_t = false)]
-   fail_fast: bool,
+    /// Skip entries after failed check
+    #[arg(short, long, default_value_t = false)]
+    fail_fast: bool,
 
-   /// Dry run
-   #[arg(short, long, default_value_t = false)]
-   dry_run: bool,
+    /// Dry run
+    #[arg(short, long, default_value_t = false)]
+    dry_run: bool,
 }
 
 fn parse_entries(yaml: &Yaml) -> Result<Vec<Entry>> {
     yaml.as_vec()
         .ok_or(Error::ManifestMalformed)
-        .and_then(|ys| ys.iter().map(Entry::from_yaml).collect::<Result<Vec<_>>>())
+        .and_then(
+            |ys| ys.iter()
+            .map(Entry::from_yaml)
+            .collect::<Result<Vec<_>>>())
 }
 
 fn parse_manifest(path: &Path) -> Result<Vec<Entry>> {
@@ -61,7 +64,7 @@ fn reify_manifest(args: &Args, path: &Path) -> Result<manifest::ReifyStatus> {
     let entries = parse_manifest(&path)?;
 
     let mut output = String::new();
-    let mut failed = false;
+    let mut success = true;
     let fail_fast = args.fail_fast;
     let dry_run = args.dry_run;
 
@@ -69,9 +72,9 @@ fn reify_manifest(args: &Args, path: &Path) -> Result<manifest::ReifyStatus> {
 
     for (i, e) in entries.iter().enumerate() {
         let name = e.name().clone().unwrap_or("<unnamed>".into());
-        if fail_fast && failed {
+        if fail_fast && ! success {
             e.dump(&mut output, None)?;
-            println!("ok {i} - {name}  # SKIP failing fast");
+            println!("ok {i} - {name}  # SKIP (fail fast)");
             continue;
         }
 
@@ -82,7 +85,7 @@ fn reify_manifest(args: &Args, path: &Path) -> Result<manifest::ReifyStatus> {
                     println!("ok {i} - {name}  # dry run");
                 }
                 Err(fail) => {
-                    failed = true;
+                    success = false;
                     println!("not ok {i} - {name}  # {fail}");
                 }
             }
@@ -99,7 +102,7 @@ fn reify_manifest(args: &Args, path: &Path) -> Result<manifest::ReifyStatus> {
                 println!("ok {i} - {name}  # noop");
             }
             Err(fail) => {
-                failed = true;
+                success = false;
                 e.dump(&mut output, None)?;
                 println!("not ok {i} - {name}  # {fail}");
             }
@@ -108,11 +111,11 @@ fn reify_manifest(args: &Args, path: &Path) -> Result<manifest::ReifyStatus> {
 
     Ok(manifest::ReifyStatus {
         output,
-        success: !failed,
+        success,
     })
 }
 
-fn find_manifests<'a>(root: &Path, name: &String) -> Vec<PathBuf> {
+fn find_manifests(root: &Path, name: &String) -> Vec<PathBuf> {
     let mut res = Vec::new();
     for file in WalkDir::new(root).into_iter().filter_map(|f| f.ok()) {
         if file.metadata().map(|m| m.is_file()).unwrap_or(false)
@@ -132,30 +135,29 @@ fn reify_and_update_manifest(args: &Args, path: &Path) -> Result<bool> {
 fn start(args: &Args) -> Result<bool> {
     let files = if args.manifest.len() > 0 {
         args.manifest.clone()
-    } else if args.recurs {
+    } else if args.recursive {
         find_manifests(Path::new("."), &args.r#match)
     } else {
-        vec![Path::new(&args.r#match).canonicalize()?]
+        vec![Path::new(&args.r#match).to_path_buf()]
     };
 
     let files = files.iter()
-        .map(|p| Ok(p.canonicalize()?))
+        .map(
+            |p| p.canonicalize()
+            .map_err(|_| Error::ManifestFileDoesntExist(p.display().to_string())))
         .collect::<Result<Vec<_>>>()?;
 
-    let success = files.iter()
-        .map(|p| match reify_and_update_manifest(&args, &p) {
-            Ok(false) => {
-                if args.fail_fast {
-                    Err(Error::FailFastStop)
-                } else {
-                    Ok(false)
-                }
-            }
-            rest => rest
-        })
-        .collect::<Result<Vec<_>>>()?
-        .iter()
-        .all(|x| x.clone());
+    let mut success = true;
+
+    for path in files {
+        if args.fail_fast && ! success {
+            println!("# skipping manifest {} (fail fast)", path.display());
+            continue;
+        }
+        if ! reify_and_update_manifest(&args, &path)? {
+            success = false;
+        }
+    }
 
     Ok(success)
 }
