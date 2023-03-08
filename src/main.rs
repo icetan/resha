@@ -75,7 +75,6 @@ fn parse_manifest(path: &Path) -> Result<Vec<Entry>> {
 fn reify_manifest(
     args: &Args,
     path: &Path,
-    output: &mut dyn std::fmt::Write,
     prev_success: bool,
 ) -> Result<manifest::ReifyStatus> {
     let print_files = |e: &Entry, success: bool| {
@@ -98,7 +97,8 @@ fn reify_manifest(
     let entries = parse_manifest(&path)?;
 
     let mut success = prev_success;
-    let mut print_man = false;
+    let mut updated = false;
+    let mut output = String::new();
 
     if print_tap {
         let path = diff_paths(path, &old_wd).unwrap_or_else(|| path.into());
@@ -111,7 +111,7 @@ fn reify_manifest(
 
         if args.fail_fast && !success {
             if !args.dry_run {
-                e.dump(output, None)?;
+                e.dump(&mut output, None)?;
             }
             print_files(e, false);
             if print_tap {
@@ -123,7 +123,7 @@ fn reify_manifest(
         if args.dry_run {
             match e.dry_run()? {
                 Ok(_) => {
-                    print_man = true;
+                    updated = true;
                     print_files(e, true);
                     if print_tap {
                         println!("ok {i} - {name}  # dry run");
@@ -148,15 +148,15 @@ fn reify_manifest(
 
         match reify_status? {
             Ok(ReifySuccess::ExecSuccess(sha)) => {
-                print_man = true;
-                e.dump(output, Some(sha))?;
+                updated = true;
+                e.dump(&mut output, Some(sha))?;
                 print_files(e, true);
                 if print_tap {
                     println!("ok {i} - {name}");
                 }
             }
             Ok(ReifySuccess::Noop) => {
-                e.dump(output, None)?;
+                e.dump(&mut output, None)?;
                 print_files(e, false);
                 if print_tap {
                     println!("ok {i} - {name}  # noop");
@@ -164,7 +164,7 @@ fn reify_manifest(
             }
             Err(fail) => {
                 success = false;
-                e.dump(output, None)?;
+                e.dump(&mut output, None)?;
                 print_files(e, false);
                 if print_tap {
                     println!("not ok {i} - {name}  # {fail}");
@@ -173,29 +173,30 @@ fn reify_manifest(
         }
     }
 
-    if args.print_manifests && (!args.only_print_reified || print_man) {
+    if args.print_manifests && (!args.only_print_reified || updated) {
         println!("{}", path.display());
     }
 
     // Change back work directory to before
     env::set_current_dir(old_wd)?;
 
-    Ok(manifest::ReifyStatus { success })
+    Ok(manifest::ReifyStatus { output, success, updated })
 }
 
 fn find_manifests(root: &Path, name: &String, recursive: bool) -> Vec<PathBuf> {
     let mut res = Vec::new();
 
+    let name = name.as_str();
     let walk = WalkDir::new(root);
     let walk = if recursive { walk } else { walk.max_depth(1) };
-
-    for file in walk.into_iter().filter_map(|f| f.ok()) {
-        if file.metadata().map(|m| m.is_file()).unwrap_or(false)
-            && file.file_name() == name.as_str()
-        {
-            res.push(file.path().to_path_buf());
-        }
+    for de in walk.into_iter().filter_map(|de| {
+        let de = de.ok()?;
+        let pred = de.file_name() == name && de.metadata().ok()?.is_file();
+        pred.then_some(de)
+    }) {
+        res.push(de.path().to_path_buf());
     }
+
     res
 }
 
@@ -217,19 +218,15 @@ fn start(args: &Args) -> Result<bool> {
     let mut success = true;
 
     for path in files {
-        // if args.fail_fast && !success {
-        //     println!("# skipping manifest {} (fail fast)", path.display());
-        //     continue;
-        // }
-        let mut output = String::new();
+        let reify_status = reify_manifest(&args, &path, success)?;
 
-        if !reify_manifest(&args, &path, &mut output, success)?.success() {
+        if !reify_status.success {
             success = false;
         }
 
-        // Don't write back to manifest file if dry run
-        if !args.dry_run {
-            fs::write(&path, &output)?;
+        // Only write back to manifest file if updated and not dry run
+        if reify_status.updated && !args.dry_run {
+            fs::write(&path, &reify_status.output)?;
         }
     }
 
