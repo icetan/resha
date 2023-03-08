@@ -27,7 +27,7 @@ struct Args {
     manifests: Vec<PathBuf>,
 
     /// Manifest file name to match
-    #[arg(long, default_value(".rsha.yml"))]
+    #[arg(long, default_value(".resha.yml"))]
     r#match: String,
 
     /// Recursively search for manifest files

@@ -1,10 +1,10 @@
-# rsha
+# resha
 
 Keep your generated and versioned files in sync
 
 ## How it Works
 
-`rsha` reads a manifest file and for each entry it will hash the files listed in
+`resha` reads a manifest file and for each entry it will hash the files listed in
 `files` and `required_files` together with the `cmd` attribute. If the hash
 doesn't match the `sha` attribute the `cmd` shell script will be run. If the
 script runs successfuly a new hash will be generated and the `sha` attribute
@@ -20,13 +20,13 @@ file and versioned (e.g. with git) along the input files.
 ```
 Keep your generated and versioned files in sync
 
-Usage: rsha [OPTIONS] [MANIFESTS]...
+Usage: resha [OPTIONS] [MANIFESTS]...
 
 Arguments:
   [MANIFESTS]...  Explicit manifest files to reify
 
 Options:
-      --match <MATCH>       Manifest file name to match [default: .rsha.yml]
+      --match <MATCH>       Manifest file name to match [default: .resha.yml]
   -r, --recursive           Recursively search for manifest files
   -f, --fail-fast           Skip entries after failed check
   -d, --dry-run             Dry run
@@ -43,7 +43,7 @@ Options:
 ## Example Manifest
 
 Regenerates rust files from protobuf when either the `.proto` or the rust
-output has changed from the last `rsha` run.
+output has changed from the last `resha` run.
 
 ```yaml
 -

@@ -261,8 +261,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "rsha"
-version = "0.2.0"
+name = "resha"
+version = "0.1.0"
 dependencies = [
  "clap",
  "duct",
