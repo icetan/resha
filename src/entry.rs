@@ -2,7 +2,7 @@ use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::{BufReader, Read};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use duct::cmd;
 use sha2::{Digest, Sha256};
@@ -25,7 +25,7 @@ pub enum ReifySuccess {
 
 #[derive(ThisError, Debug)]
 pub enum ReifyFail {
-    #[error("exit {0}")]
+    #[error("non-zero exit code")]
     ExecFail(i32),
     #[error("missing required files")]
     MissingRequiredFiles,
@@ -44,10 +44,6 @@ pub struct Entry {
     sha: Option<String>,
 }
 
-fn canonicalize(p: &String) -> Option<PathBuf> {
-    Path::new(p).canonicalize().ok()
-}
-
 fn str_vec(y: &Yaml) -> Vec<String> {
     match y {
         Yaml::Array(x) => x
@@ -61,16 +57,21 @@ fn str_vec(y: &Yaml) -> Vec<String> {
 }
 
 impl Entry {
-    fn calc_sha(&self) -> Result<Sha> {
-        let mut hasher = Sha256::new();
-        let mut buffer = [0; 1024];
+    pub fn all_files(&self) -> Vec<PathBuf> {
         let mut all_files = self
             .files
             .iter()
             .chain(self.required_files.iter())
-            .filter_map(canonicalize)
+            .flat_map(std::fs::canonicalize)
             .collect::<Vec<_>>();
         all_files.sort();
+        all_files
+    }
+
+    fn calc_sha(&self) -> Result<Sha> {
+        let mut hasher = Sha256::new();
+        let mut buffer = [0; 1024];
+        let all_files = self.all_files();
         for file in all_files {
             let input = File::open(&file)?;
             let mut reader = BufReader::new(input);
@@ -87,7 +88,7 @@ impl Entry {
         Ok(format!("{:x}", hasher.finalize()))
     }
 
-    fn exec(&self) -> Result<i32> {
+    fn exec(&self, w: &mut dyn std::io::Write) -> Result<i32> {
         let script = vec!["set -xe", &self.cmd].join("\n");
 
         let reader = cmd!("bash", "-c", script)
@@ -99,7 +100,10 @@ impl Entry {
         let lines = BufReader::new(reader).lines();
         for line in lines {
             match line {
-                Ok(l) => eprintln!("{}", l),
+                Ok(l) => {
+                    writeln!(w, "{}", l)?;
+                }
+                // TODO: Get exit code and return it instead of 1
                 Err(_) => return Ok(1),
             }
         }
@@ -127,9 +131,9 @@ impl Entry {
         }
     }
 
-    pub fn reify(&self) -> Result<ReifyResult> {
+    pub fn reify(&self, w: &mut dyn std::io::Write) -> Result<ReifyResult> {
         let exec = || {
-            self.exec().and_then(|code| {
+            self.exec(w).and_then(|code| {
                 if code == 0 {
                     self.calc_sha()
                         .and_then(|sha| Ok(Ok(ReifySuccess::ExecSuccess(sha))))
@@ -154,7 +158,7 @@ impl Entry {
         self.check_then(|| Ok(Err(ReifyFail::DryFail)))
     }
 
-    pub fn dump(&self, w: &mut dyn fmt::Write, new_sha: Option<Sha>) -> Result<()> {
+    pub fn dump(&self, w: &mut dyn core::fmt::Write, new_sha: Option<Sha>) -> Result<()> {
         writeln!(w, "-")?;
 
         if let Some(name) = &self.name {
@@ -183,6 +187,7 @@ impl Entry {
         if let Some(sha) = new_sha.or_else(|| self.sha.clone()) {
             writeln!(w, "  sha: {}", sha)?;
         }
+
         Ok(())
     }
 

@@ -26,12 +26,16 @@ Arguments:
   [MANIFESTS]...  Explicit manifest files to reify
 
 Options:
-  -m, --match <MATCH>  Manifest file name to match [default: .rsha.yml]
-  -r, --recursive      Recursively search for manifest files
-  -f, --fail-fast      Skip entries after failed check
-  -d, --dry-run        Dry run
-  -h, --help           Print help
-  -V, --version        Print version
+      --match <MATCH>       Manifest file name to match [default: .rsha.yml]
+  -r, --recursive           Recursively search for manifest files
+  -f, --fail-fast           Skip entries after failed check
+  -d, --dry-run             Dry run
+  -i, --print-inputs        Print input files
+  -m, --print-manifests     Print manifest files
+  -o, --only-print-reified  Only print files from reified entries
+  -q, --quiet               Hide execution output
+  -h, --help                Print help
+  -V, --version             Print version
 
 ```
 <!--END[]-->
