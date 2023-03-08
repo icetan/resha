@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use clap::Parser;
 use strict_yaml_rust::{StrictYaml as Yaml, StrictYamlLoader};
 use walkdir::WalkDir;
+use pathdiff::diff_paths;
 
 mod entry;
 mod error;
@@ -87,10 +88,11 @@ fn reify_manifest(
 
     let print_tap = !args.print_inputs && !args.print_manifests;
 
+    // Change working directory to manifest files dir
+    let old_wd = env::current_dir()?;
     let wd = path
         .parent()
         .ok_or_else(|| Error::InvalidPath(path.display().to_string()))?;
-
     env::set_current_dir(wd)?;
 
     let entries = parse_manifest(&path)?;
@@ -99,7 +101,8 @@ fn reify_manifest(
     let mut print_man = false;
 
     if print_tap {
-        println!("1..{}  # manifest {}", entries.len(), path.display())
+        let path = diff_paths(path, &old_wd).unwrap_or_else(|| path.into());
+        println!("1..{}  # manifest {}", entries.len(), path.display());
     }
 
     for (i, e) in entries.iter().enumerate() {
@@ -173,6 +176,9 @@ fn reify_manifest(
     if args.print_manifests && (!args.only_print_reified || print_man) {
         println!("{}", path.display());
     }
+
+    // Change back work directory to before
+    env::set_current_dir(old_wd)?;
 
     Ok(manifest::ReifyStatus { success })
 }
