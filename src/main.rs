@@ -20,6 +20,7 @@ use crate::error::{Error, Result};
 struct Args {
     /// Explicit manifest files to reify
     #[arg(
+        env("RESHA_MANIFEST"),
         allow_hyphen_values = true,
         conflicts_with("recursive"),
         conflicts_with("match")
@@ -27,19 +28,19 @@ struct Args {
     manifests: Vec<PathBuf>,
 
     /// Manifest file name to match
-    #[arg(long, default_value(".resha.yml"))]
+    #[arg(long, env("RESHA_MATCH"), default_value(".resha.yml"))]
     r#match: String,
 
     /// Recursively search for manifest files
-    #[arg(short, long, default_value_t = false)]
+    #[arg(short, long, env("RESHA_RECURSIVE"), default_value_t = false)]
     recursive: bool,
 
     /// Skip entries after failed check
-    #[arg(short, long, default_value_t = false)]
+    #[arg(short, long, env("RESHA_FAIL_FAST"), default_value_t = false)]
     fail_fast: bool,
 
     /// Dry run
-    #[arg(short, long, default_value_t = false)]
+    #[arg(short, long, env("RESHA_DRY_RUN"), default_value_t = false)]
     dry_run: bool,
 
     /// Print input files
@@ -55,7 +56,7 @@ struct Args {
     only_print_reified: bool,
 
     /// Hide execution output
-    #[arg(short, long, default_value_t = false)]
+    #[arg(short, long, env("RESHA_QUIET"), default_value_t = false)]
     quiet: bool,
 }
 

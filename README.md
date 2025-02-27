@@ -23,17 +23,17 @@ Keep your generated and versioned files in sync
 Usage: resha [OPTIONS] [MANIFESTS]...
 
 Arguments:
-  [MANIFESTS]...  Explicit manifest files to reify
+  [MANIFESTS]...  Explicit manifest files to reify [env: RESHA_MANIFEST=]
 
 Options:
-      --match <MATCH>       Manifest file name to match [default: .resha.yml]
-  -r, --recursive           Recursively search for manifest files
-  -f, --fail-fast           Skip entries after failed check
-  -d, --dry-run             Dry run
+      --match <MATCH>       Manifest file name to match [env: RESHA_MATCH=] [default: .resha.yml]
+  -r, --recursive           Recursively search for manifest files [env: RESHA_RECURSIVE=]
+  -f, --fail-fast           Skip entries after failed check [env: RESHA_FAIL_FAST=]
+  -d, --dry-run             Dry run [env: RESHA_DRY_RUN=]
   -i, --print-inputs        Print input files
   -m, --print-manifests     Print manifest files
   -o, --only-print-reified  Only print files from reified entries
-  -q, --quiet               Hide execution output
+  -q, --quiet               Hide execution output [env: RESHA_QUIET=]
   -h, --help                Print help
   -V, --version             Print version
 
