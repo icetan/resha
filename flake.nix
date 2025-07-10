@@ -2,6 +2,7 @@
   description = "";
   inputs = {
     naersk.url = "github:nix-community/naersk/master";
+    naersk.inputs.nixpkgs.follows = "nixpkgs";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     utils.url = "github:numtide/flake-utils";
 
