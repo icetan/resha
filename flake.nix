@@ -1,8 +1,6 @@
 {
-  description = "";
+  description = "CLI tool to synchronize file generation tasks";
   inputs = {
-    naersk.url = "github:nix-community/naersk/master";
-    naersk.inputs.nixpkgs.follows = "nixpkgs";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     utils.url = "github:numtide/flake-utils";
 
@@ -15,15 +13,30 @@
       self,
       nixpkgs,
       utils,
-      naersk,
       ...
     }:
     utils.lib.eachDefaultSystem (
       system:
       let
         pkgs = import nixpkgs { inherit system; };
-        naersk-lib = pkgs.callPackage naersk { };
-        resha = naersk-lib.buildPackage ./.;
+        meta = pkgs.lib.importTOML ./Cargo.toml;
+        resha = pkgs.pkgsStatic.rustPlatform.buildRustPackage {
+          pname = meta.package.name;
+          version = meta.package.version;
+          src =
+            with pkgs.lib.fileset;
+            toSource {
+              root = ./.;
+              fileset = unions [
+                ./Cargo.toml
+                ./Cargo.lock
+                ./src
+              ];
+            };
+          cargoLock = {
+            lockFile = ./Cargo.lock;
+          };
+        };
       in
       {
         packages = {

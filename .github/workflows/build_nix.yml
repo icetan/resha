@@ -10,4 +10,5 @@ jobs:
       - uses: actions/checkout@v2
       - uses: cachix/install-nix-action@v12
       - name: Building package
-        run: nix-build . -A packages.x86_64-linux.default
+        run: |
+          nix-build . --no-out-link -A packages.x86_64-linux.default
