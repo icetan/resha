@@ -5,10 +5,18 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        runner:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
+          - macos-15-intel
+          - macos-15
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v2
-      - uses: cachix/install-nix-action@v12
+      - uses: cachix/install-nix-action@v31
       - name: Building package
         run: |
-          nix-build . --no-out-link -A packages.x86_64-linux.default
+          system=$(nix-instantiate -E 'builtins.currentSystem' --eval-only | tr -d '"')
+          nix-build . -A packages.$system.default
