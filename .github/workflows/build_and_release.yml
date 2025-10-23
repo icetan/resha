@@ -1,0 +1,73 @@
+name: Build and create release on tag
+
+on:
+  push:
+    branches:
+      - "**"
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+permissions:
+  packages: write
+  contents: write
+
+jobs:
+  build:
+    name: Build static resha binary
+    strategy:
+      matrix:
+        runner:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
+          - macos-15-intel
+          - macos-15
+    runs-on: ${{ matrix.runner }}
+
+    # steps:
+    #   - uses: actions/checkout@v2
+    #   - uses: cachix/install-nix-action@v31
+    #   - name: Build non-flake
+    #     run: |
+    #       system=$(nix-instantiate -E 'builtins.currentSystem' --eval-only | tr -d '"')
+    #       nix-build . -A packages.$system.default
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: cachix/install-nix-action@v31
+      - name: Build flake
+        run: |
+          system=$(nix-instantiate -E 'builtins.currentSystem' --eval-only | tr -d '"')
+          nix --extra-experimental-features "nix-command flakes" build .
+          mkdir -p output
+          cp -v result/bin/resha output/resha-${system}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: resha-binary-${{ matrix.runner }}
+          path: output/*
+          if-no-files-found: error
+          retention-days: 1
+
+  release:
+    name: Create release
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          path: output/
+          pattern: resha-*
+          merge-multiple: true
+
+      - name: Create release
+        id: create_release
+        uses: ncipollo/release-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          artifacts: output/resha-*
+          # bodyFile: "CHANGELOG.md"      uses: elgohr/Github-Release-Action@v5
