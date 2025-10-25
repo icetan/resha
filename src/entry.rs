@@ -89,7 +89,7 @@ impl Entry {
     }
 
     fn exec(&self, w: &mut dyn std::io::Write) -> Result<i32> {
-        let script = vec!["set -xe", &self.cmd].join("\n");
+        let script = ["set -xe", &self.cmd].join("\n");
 
         let reader = cmd!("bash", "-c", script)
             .env("files", self.files.join("\n"))
@@ -135,8 +135,7 @@ impl Entry {
         let exec = || {
             self.exec(w).and_then(|code| {
                 if code == 0 {
-                    self.calc_sha()
-                        .and_then(|sha| Ok(Ok(ReifySuccess::ExecSuccess(sha))))
+                    self.calc_sha().map(|sha| Ok(ReifySuccess::ExecSuccess(sha)))
                 } else {
                     Ok(Err(ReifyFail::ExecFail(code)))
                 }

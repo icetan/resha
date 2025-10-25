@@ -26,7 +26,7 @@ Arguments:
   [MANIFESTS]...  Explicit manifest files to reify [env: RESHA_MANIFEST=]
 
 Options:
-      --match <MATCH>       Manifest file name to match [env: RESHA_MATCH=] [default: .resha.yml]
+      --match <MATCH>       Manifest file name to match [env: RESHA_MATCH=] [default: ^.resha.ya?ml$]
   -r, --recursive           Recursively search for manifest files [env: RESHA_RECURSIVE=]
   -f, --fail-fast           Skip entries after failed check [env: RESHA_FAIL_FAST=]
   -d, --dry-run             Dry run [env: RESHA_DRY_RUN=]

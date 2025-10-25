@@ -3,9 +3,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use clap::Parser;
+use pathdiff::diff_paths;
+use regex::Regex;
 use strict_yaml_rust::{StrictYaml as Yaml, StrictYamlLoader};
 use walkdir::WalkDir;
-use pathdiff::diff_paths;
 
 mod entry;
 mod error;
@@ -28,7 +29,7 @@ struct Args {
     manifests: Vec<PathBuf>,
 
     /// Manifest file name to match
-    #[arg(long, env("RESHA_MATCH"), default_value(".resha.yml"))]
+    #[arg(long, env("RESHA_MATCH"), default_value("^.resha.ya?ml$"))]
     r#match: String,
 
     /// Recursively search for manifest files
@@ -67,17 +68,13 @@ fn parse_entries(yaml: &Yaml) -> Result<Vec<Entry>> {
 }
 
 fn parse_manifest(path: &Path) -> Result<Vec<Entry>> {
-    let yaml_str = fs::read_to_string(&path)?;
+    let yaml_str = fs::read_to_string(path)?;
     let docs = StrictYamlLoader::load_from_str(&yaml_str)?;
-    let yaml = docs.get(0).ok_or(Error::ManifestMalformed)?;
+    let yaml = docs.first().ok_or(Error::ManifestMalformed)?;
     parse_entries(yaml)
 }
 
-fn reify_manifest(
-    args: &Args,
-    path: &Path,
-    prev_success: bool,
-) -> Result<manifest::ReifyStatus> {
+fn reify_manifest(args: &Args, path: &Path, prev_success: bool) -> Result<manifest::ReifyStatus> {
     let print_files = |e: &Entry, success: bool| {
         if args.print_inputs && (!args.only_print_reified || success) {
             for path in e.all_files() {
@@ -95,7 +92,7 @@ fn reify_manifest(
         .ok_or_else(|| Error::InvalidPath(path.display().to_string()))?;
     env::set_current_dir(wd)?;
 
-    let entries = parse_manifest(&path)?;
+    let entries = parse_manifest(path)?;
 
     let mut success = prev_success;
     let mut updated = false;
@@ -181,18 +178,22 @@ fn reify_manifest(
     // Change back work directory to before
     env::set_current_dir(old_wd)?;
 
-    Ok(manifest::ReifyStatus { output, success, updated })
+    Ok(manifest::ReifyStatus {
+        output,
+        success,
+        updated,
+    })
 }
 
-fn find_manifests(root: &Path, name: &String, recursive: bool) -> Vec<PathBuf> {
+fn find_manifests(root: &Path, re: &Regex, recursive: bool) -> Vec<PathBuf> {
     let mut res = Vec::new();
-
-    let name = name.as_str();
     let walk = WalkDir::new(root);
     let walk = if recursive { walk } else { walk.max_depth(1) };
     for de in walk.into_iter().filter_map(|de| {
         let de = de.ok()?;
-        let pred = de.file_name() == name && de.metadata().ok()?.is_file();
+        let path = de.file_name().to_str()?;
+        let metadata = de.metadata().ok()?;
+        let pred = re.is_match(path) && (metadata.is_file() || metadata.is_symlink());
         pred.then_some(de)
     }) {
         res.push(de.path().to_path_buf());
@@ -202,24 +203,24 @@ fn find_manifests(root: &Path, name: &String, recursive: bool) -> Vec<PathBuf> {
 }
 
 fn start(args: &Args) -> Result<bool> {
-    let files = if args.manifests.len() > 0 {
-        args.manifests.clone()
+    let files = if args.manifests.is_empty() {
+        let re = Regex::new(&args.r#match).map_err(Error::InvalidMatchRegex)?;
+        find_manifests(Path::new("."), &re, args.recursive)
     } else {
-        find_manifests(Path::new("."), &args.r#match, args.recursive)
+        args.manifests.clone()
     };
-
-    let files = files
-        .iter()
-        .map(|p| {
-            p.canonicalize()
-                .map_err(|_| Error::ManifestFileDoesntExist(p.display().to_string()))
-        })
-        .collect::<Result<Vec<_>>>()?;
 
     let mut success = true;
 
-    for path in files {
-        let reify_status = reify_manifest(&args, &path, success)?;
+    for mut path in files {
+        if !path.is_absolute() {
+            path = env::current_dir()?.join(path)
+        }
+        if !path.is_file() && !path.is_symlink() {
+            return Err(Error::ManifestFileDoesntExist(path.display().to_string()));
+        }
+
+        let reify_status = reify_manifest(args, &path, success)?;
 
         if !reify_status.success {
             success = false;

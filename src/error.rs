@@ -1,7 +1,7 @@
 use std::{fmt, io, string::FromUtf8Error};
 
-use thiserror::Error as ThisError;
 use strict_yaml_rust::{EmitError, ScanError};
+use thiserror::Error as ThisError;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -25,4 +25,6 @@ pub enum Error {
     SerializeYaml(#[from] EmitError),
     #[error("Cloudn't dump entry")]
     DumpEntry(#[from] fmt::Error),
+    #[error("Cloudn't parse regex")]
+    InvalidMatchRegex(#[from] regex::Error),
 }
