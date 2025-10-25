@@ -21,10 +21,10 @@ pub enum Error {
     ConvertUTF8(#[from] FromUtf8Error),
     #[error("Invalid path - '{0}'")]
     InvalidPath(String),
-    #[error("Cloudn't update config")]
+    #[error("Couldnt't update config")]
     SerializeYaml(#[from] EmitError),
-    #[error("Cloudn't dump entry")]
+    #[error("Couldnt't dump entry")]
     DumpEntry(#[from] fmt::Error),
-    #[error("Cloudn't parse regex")]
+    #[error("Couldnt't parse match regex")]
     InvalidMatchRegex(#[from] regex::Error),
 }
