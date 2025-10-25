@@ -22,18 +22,15 @@ jobs:
           - macos-15-intel
           - macos-15
     runs-on: ${{ matrix.runner }}
-
-    # steps:
-    #   - uses: actions/checkout@v2
-    #   - uses: cachix/install-nix-action@v31
-    #   - name: Build non-flake
-    #     run: |
-    #       system=$(nix-instantiate -E 'builtins.currentSystem' --eval-only | tr -d '"')
-    #       nix-build . -A packages.$system.default
-
     steps:
       - uses: actions/checkout@v2
       - uses: cachix/install-nix-action@v31
+
+      # - name: Build non-flake
+      #   run: |
+      #     system=$(nix-instantiate -E 'builtins.currentSystem' --eval-only | tr -d '"')
+      #     nix-build . -A packages.$system.default
+
       - name: Build flake
         run: |
           system=$(nix-instantiate -E 'builtins.currentSystem' --eval-only | tr -d '"')
